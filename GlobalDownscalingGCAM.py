@@ -18,13 +18,13 @@ import multiprocessing
 import xlrd
 
 
-def intensification(spat_ludataharm_sub,order_rules,transition_rules,constrain_rules,target_intensification,land_mismatch,target_change,cons_data_sub,reg,aeznumber,errortol,final_landclasses,printlevel):
+def intensification(spat_ludataharm_sub,order_rules,transition_rules,constrain_rules,target_intensification,land_mismatch,target_change,kernel_vector_sub,constrains,cons_data_sub,reg,aeznumber,errortol,final_landclasses,printlevel):
 	####################
 	### LOOP ON PFTs ###
 	####################
 	# We follow the order of treatment as defined by the user and retrieved in order_rules
-	if (reg == 2) & (aeznumber == 7):
-		printlevel = 5
+# 	if (reg == 10) & (aeznumber == 15):
+# 		printlevel = 5
 	for pftord in np.unique(order_rules):
 		pft = np.where(order_rules == pftord)[0][0]
 		lname = final_landclasses[pft]
@@ -35,8 +35,11 @@ def intensification(spat_ludataharm_sub,order_rules,transition_rules,constrain_r
 			printyan(lname + ' no intensification wanted: ' + str(int_target),4<=printlevel)
 		else: 
 			printyan(lname + ' intensification wanted: ' + str(int_target),4<=printlevel)
-			# First we retrieve expansion constrains (e.g. soil quality, protection status, etc) for the PFT
+			# First we retrieve expansion constrains for the PFT (e.g. soil quality, protection status, etc) for the PFT
 			cons_rules_pft = constrain_rules[:,pft]
+			# We now add the kernel density to the constrains and normalize their value (all constrains are [0 1])
+			cons_data_sub[:,constrains == 'kerneldensity'] = kernel_vector_sub[:,pft] / np.nanmax([0.00000001,np.nanmax(kernel_vector_sub[:,pft])])
+			# Now we apply the weight of each constrain for that pft
 			cons_data_subpft = cons_data_sub * np.tile(cons_rules_pft,(len(spat_ludataharm_sub[:,pft]),1))
 			cons_data_subpft[:,cons_rules_pft==0] = np.nan # zero means that constrain does not apply to the PFT, we turn these values into np.nans.
 			cons_data_subpft[:,cons_rules_pft<0]=np.ones(shape=np.shape(cons_data_sub[:,cons_rules_pft<0]))+cons_data_subpft[:,cons_rules_pft<0] # Negative values mean inverted constrains
@@ -59,22 +62,24 @@ def intensification(spat_ludataharm_sub,order_rules,transition_rules,constrain_r
 						#--- Intensification constrains on those grid-cells, weighted by the user-input constrain weights.
 						cons_cells = cons_data_subpft[exist_cells,:]
 						#--- Combining and normalizing constrains
-						mean_cons_cells = np.nanmean(cons_cells,axis=1)
-						mean_cons_cells = 1 - (1 - mean_cons_cells)/np.nanmax([0.00000001,np.nanmax((1. - mean_cons_cells))])
-						mean_cons_cells[np.isnan(mean_cons_cells)] = 0. # when there's no constrains because none is applied to the PFT (all np.nans), then constrain is 0 (no constrain).
+						mean_cons_cells = np.nansum(cons_cells,axis=1) / np.nanmean(np.nansum(cons_cells,axis=1))			
+						mean_cons_cells = mean_cons_cells/np.nanmax([0.00000001,np.nanmax(mean_cons_cells)])
+						mean_cons_cells[np.isnan(mean_cons_cells)] = 1. # when there's no constrains because none is applied to the PFT (all np.nans), then constrain is 1 (no constrain).
+						#intensification_likelihood = mean_cons_cells
+						intensification_likelihood = np.power(mean_cons_cells,2)
+						#--- Checking that we have non-zero values (if all is zero, no grid-cell will ever be selected)
+						if np.nanmax(intensification_likelihood) == 0:
+							intensification_likelihood[:] = 1.
 						#--- Total area that the PFT-to-convert could give
 						swaparea = min([int_target,target_change[reg,aeznumber-1,pft_toconv] * -1,np.sum(spat_ludataharm_sub[exist_cells,pft_toconv])])
 						swaparea = min([swaparea, int_target])
-						#--- Potential expansion: the more a grid-cell has of the expanding landcover, the more its potential expansion
-						potexpansion = swaparea * spat_ludataharm_sub[exist_cells,pft] / np.sum(spat_ludataharm_sub[exist_cells,pft])
 						#--- Applying the constrains, the less constrain, the higher the fraction of potential expansion is allowed
-						potexpansion = potexpansion * (1 - mean_cons_cells)
+						potexpansion = swaparea * intensification_likelihood / np.sum(intensification_likelihood)
 						if np.sum(potexpansion<0)>0:
 							print '!!!! <0'
 							print potexpansion
 							print lname
 							print lname_toconv
-						
 						#--- Actual expansion: for each grid-cell, the minimum of: potential expansion, and actual expansion
 						actexpansion = np.amin([potexpansion,spat_ludataharm_sub[exist_cells,pft_toconv]],axis=0)
 						#--- Applying land swap between both PFTs
@@ -88,15 +93,6 @@ def intensification(spat_ludataharm_sub,order_rules,transition_rules,constrain_r
 							bleeeee
 						#--- updating notdone: if we're reached our intensification target, or if there's no more of the to-convert PFT
 						# in the considered grid-cells, then we break the while loop
-						#print 'notdonedetails'
-						#print int_target
-						#print (target_change[reg,aeznumber-1,pft_toconv]
-						#print np.sum(spat_ludataharm_sub[exist_cells,pft_toconv])
-						#print len(exist_cells)
-						if np.sum(mean_cons_cells) == len(mean_cons_cells):
-							print np.sum(mean_cons_cells)
-							print shape(mean_cons_cells)
-							print mean_cons_cells
 						notdone = (int_target > errortol) & (target_change[reg,aeznumber-1,pft_toconv] < -errortol) & (np.sum(spat_ludataharm_sub[exist_cells,pft_toconv]) > errortol)	& (len(exist_cells) > 0) & (np.sum(mean_cons_cells) != len(mean_cons_cells))
 				#printyan(lname + ' left after: ' + lname_toconv + ': ' + str(int_target) ,4<=printlevel)
 			#--- How much intensification we've achieved 
@@ -104,12 +100,12 @@ def intensification(spat_ludataharm_sub,order_rules,transition_rules,constrain_r
 	return spat_ludataharm_sub, target_change
 
 
-def expansion(spat_ludataharm_sub,order_rules,transition_rules,constrain_rules,target_intensification,land_mismatch,target_change,kernel_vector_sub,cons_data_sub,reg,aeznumber,errortol,final_landclasses,printlevel):
+def expansion(spat_ludataharm_sub,order_rules,transition_rules,constrain_rules,target_intensification,land_mismatch,target_change,kernel_vector_sub,constrains,cons_data_sub,reg,aeznumber,errortol,final_landclasses,printlevel):
 	####################
 	### LOOP ON PFTs ###
 	####################
-	if (reg == 2) & (aeznumber == 7):
-		printlevel = 5
+# 	if (reg == 10) & (aeznumber == 15):
+# 		printlevel = 5
 	# We follow the order of treatment as defined by the user and retrieved in order_rules
 	for pftord in np.unique(order_rules):
 		pft = np.where(order_rules == pftord)[0][0]
@@ -124,6 +120,9 @@ def expansion(spat_ludataharm_sub,order_rules,transition_rules,constrain_rules,t
 			printyan(lname + ' expansion wanted: ' + str(exp_target),4<=printlevel)
 			# First we retrieve expansion constrains (e.g. soil quality, protection status, etc) for the PFT
 			cons_rules_pft = constrain_rules[:,pft]
+			# We now add the kernel density to the constrains and normalize their value (all constrains are [0 1])
+			cons_data_sub[:,constrains == 'kerneldensity'] = kernel_vector_sub[:,pft] / np.nanmax([0.00000001,np.nanmax(kernel_vector_sub[:,pft])])
+			# Now we apply the weight of each constrain for that pft
 			cons_data_subpft = cons_data_sub * np.tile(cons_rules_pft,(len(spat_ludataharm_sub[:,pft]),1))
 			cons_data_subpft[:,cons_rules_pft==0] = np.nan # zero means that constrain does not apply to the PFT, we turn these values into np.nans.
 			cons_data_subpft[:,cons_rules_pft<0]=np.ones(shape=np.shape(cons_data_sub[:,cons_rules_pft<0]))+cons_data_subpft[:,cons_rules_pft<0] # Negative values mean inverted constrains
@@ -147,12 +146,15 @@ def expansion(spat_ludataharm_sub,order_rules,transition_rules,constrain_rules,t
 						#kernel_temp[exist_cells == False] = 0
 						#--- Expansion constrains on those grid-cells, weighted by the user-input constrain weights.
 						cons_cells = cons_data_subpft[exist_cells,:]
-						mean_cons_cells = np.nanmean(cons_cells,axis=1)
-						mean_cons_cells = 1 - (1 - mean_cons_cells)/np.nanmax([0.00000001,np.nanmax((1. - mean_cons_cells))])
-						mean_cons_cells[np.isnan(mean_cons_cells)] = 0. # when there's no constrains because none is applied to the PFT (all np.nans), then constrain is 0 (no constrain).
+						mean_cons_cells = np.nansum(cons_cells,axis=1) / np.nanmean(np.nansum(cons_cells,axis=1))
+						mean_cons_cells = mean_cons_cells/np.nanmax([0.00000001,np.nanmax(mean_cons_cells)])
+						mean_cons_cells[np.isnan(mean_cons_cells)] = 0. # when there's no constrains because none is applied to the PFT (all np.nans), then constrain is 1(no constrain).
 						#--- Combined grid-cell value of kernel density and constrains for stochastic draw of which grid-cells will receive expansion
-						expansion_likelihood = (1 - mean_cons_cells) * kernel_vector_sub[exist_cells,pft]
-						gna = kernel_vector_sub[exist_cells,pft]
+						#expansion_likelihood = mean_cons_cells #* kernel_vector_sub[exist_cells,pft]
+						expansion_likelihood=np.power(mean_cons_cells,2)
+						#--- Checking that we have non-zero values (if all is zero, no grid-cell will ever be selected)
+						if np.nanmax(expansion_likelihood) == 0:
+							expansion_likelihood[:] = 1.
 						#--- Selection of the grid-cells we'll expand on.
 						# We use stochastic draw or just select the grid cells with the highest likelihood 
 						# following user-defined parameter
@@ -182,10 +184,6 @@ def expansion(spat_ludataharm_sub,order_rules,transition_rules,constrain_rules,t
 							bleeeeeee
 						#--- updating notdone: if we're reached our intensification target, or if there's no more of the to-convert PFT
 						# in the considered grid-cells, then we break the while loop
-						if np.sum(mean_cons_cells) == len(mean_cons_cells):
-							print np.sum(mean_cons_cells)
-							print shape(mean_cons_cells)
-							print mean_cons_cells
 						notdone = (exp_target > errortol) & (target_change[reg,aeznumber-1,pft_toconv] < -errortol) & (np.sum(spat_ludataharm_sub[exist_cells,pft_toconv]) > errortol) & (len(exist_cells) > 0) & (np.sum(mean_cons_cells) != len(mean_cons_cells))
 			#--- How much intensification we've achieved 
 			printyan(lname + ' expansion achieved: ' + str(exp_target_const - target_change[reg,aeznumber-1,pft]) + ' (Total: ' + str((land_mismatch[reg,aeznumber-1,pft] - target_change[reg,aeznumber-1,pft]) / land_mismatch[reg,aeznumber-1,pft] * 100) + '%)',4<=printlevel)
@@ -648,19 +646,22 @@ spat_ludata = spat_ludata/(resin*resin) * np.transpose([cellarea,] * len(spat_la
 ### Spatial constrains
 printyan('3. Spatial constrains data... might take a few minutes',0<printlevel)
 if len(constrains) == 0:
-	cons_data = np.zeros(shape=(ngrids,1))
+	cons_data = np.ones(shape=(ngrids,1)) # if no constrain is considered, we apply 1 (no constrain) to every grid cell.
 else:
 	cons_data = np.zeros(shape=(ngrids,len(constrains)))
 	for cons in range(len(constrains)):
-		exec('consfile = ' + constrains[cons])
-		data = np.loadtxt(RootPath + consfile, delimiter=',')
-		if len(data[:,0]) != ngrids:
-			print 'PROBLEM: the number of grid-cells in the constrain data ' + constrains[cons] + ' does not match the number of grid-cells in the spatial LU data'
-			bleeee
-		if np.nansum(spat_grid_id - data[:,0]) != 0:
-			print 'PROBLEM: the grid-cell id of the constrain data ' + constrains[cons] + ' do not match the spatial LU data'
-			bleeee
-		cons_data[:,cons] = data[:,-1]
+		if constrains[cons] != 'kerneldensity':
+			# Kernel density is computed later, on the fly, every year, unlike other constrains which are constant inputs.
+			exec('consfile = ' + constrains[cons])
+			data = np.loadtxt(RootPath + consfile, delimiter=',')
+			if len(data[:,0]) != ngrids:
+				print 'PROBLEM: the number of grid-cells in the constrain data ' + constrains[cons] + ' does not match the number of grid-cells in the spatial LU data'
+				bleeee
+			if np.nansum(spat_grid_id - data[:,0]) != 0:
+				print 'PROBLEM: the grid-cell id of the constrain data ' + constrains[cons] + ' do not match the spatial LU data'
+				bleeee
+			cons_data[:,cons] = data[:,-1]
+
 
 
 ####################################################
@@ -932,11 +933,12 @@ for y in range(len(useryears)):
 			spat_ludataharm_sub = spat_ludataharm[(spat_region == regnumber) & (spat_aez == aeznumber)]
 			spat_aez_sub = spat_aez[(spat_region == regnumber) & (spat_aez == aeznumber)]
 			spat_coords_sub = spat_coords[(spat_region == regnumber) & (spat_aez == aeznumber)]
+			kernel_vector_sub = kernel_vector[(spat_region == regnumber) & (spat_aez == aeznumber)]
 			cons_data_sub = cons_data[(spat_region == regnumber) & (spat_aez == aeznumber)]
 			############################################
 			### CALLING THE INTENSIFICATION FUNCTION ###
 			############################################
-			spat_ludataharm[(spat_region == regnumber) & (spat_aez == aeznumber)],target_change = intensification(spat_ludataharm_sub,order_rules,transition_rules,constrain_rules,target_intensification,land_mismatch,target_change,cons_data_sub,reg,aeznumber,errortol,final_landclasses,printlevel)
+			spat_ludataharm[(spat_region == regnumber) & (spat_aez == aeznumber)],target_change = intensification(spat_ludataharm_sub,order_rules,transition_rules,constrain_rules,target_intensification,land_mismatch,target_change,kernel_vector_sub,constrains,cons_data_sub,reg,aeznumber,errortol,final_landclasses,printlevel)
 
 			#--- End PFT loop
 		#--- End AEZ loop
@@ -987,7 +989,7 @@ for y in range(len(useryears)):
 			####################
 			### LOOP ON PFTs ###
 			####################
-			spat_ludataharm[(spat_region == regnumber) & (spat_aez == aeznumber)],target_change = expansion(spat_ludataharm_sub,order_rules,transition_rules,constrain_rules,target_intensification,land_mismatch,target_change,kernel_vector_sub,cons_data_sub,reg,aeznumber,errortol,final_landclasses,printlevel)
+			spat_ludataharm[(spat_region == regnumber) & (spat_aez == aeznumber)],target_change = expansion(spat_ludataharm_sub,order_rules,transition_rules,constrain_rules,target_intensification,land_mismatch,target_change,kernel_vector_sub,constrains,cons_data_sub,reg,aeznumber,errortol,final_landclasses,printlevel)
 			
 			#--- End PFT loop
 		#--- End AEZ loop
@@ -1032,11 +1034,12 @@ for y in range(len(useryears)):
 			spat_ludataharm_sub = spat_ludataharm[(spat_region == regnumber) & (spat_aez == aeznumber)]
 			spat_aez_sub = spat_aez[(spat_region == regnumber) & (spat_aez == aeznumber)]
 			spat_coords_sub = spat_coords[(spat_region == regnumber) & (spat_aez == aeznumber)]
+			kernel_vector_sub = kernel_vector[(spat_region == regnumber) & (spat_aez == aeznumber)]
 			cons_data_sub = cons_data[(spat_region == regnumber) & (spat_aez == aeznumber)]
 			####################
 			### LOOP ON PFTs ###
 			####################
-			spat_ludataharm[(spat_region == regnumber) & (spat_aez == aeznumber)],target_change = intensification(spat_ludataharm_sub,order_rules,transition_rules,constrain_rules,target_intensification,land_mismatch,target_change,cons_data_sub,reg,aeznumber,errortol,final_landclasses,printlevel)
+			spat_ludataharm[(spat_region == regnumber) & (spat_aez == aeznumber)],target_change = intensification(spat_ludataharm_sub,order_rules,transition_rules,constrain_rules,target_intensification,land_mismatch,target_change,kernel_vector_sub,constrains,cons_data_sub,reg,aeznumber,errortol,final_landclasses,printlevel)
 
 			#--- End PFT loop
 		#--- End AEZ loop

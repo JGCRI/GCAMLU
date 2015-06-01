@@ -40,9 +40,11 @@ def intensification(spat_ludataharm_sub,order_rules,transition_rules,constrain_r
 			# We now add the kernel density to the constrains and normalize their value (all constrains are [0 1])
 			cons_data_sub[:,constrains == 'kerneldensity'] = kernel_vector_sub[:,pft] / np.nanmax([0.00000001,np.nanmax(kernel_vector_sub[:,pft])])
 			# Now we apply the weight of each constrain for that pft
-			cons_data_subpft = cons_data_sub * np.tile(cons_rules_pft,(len(spat_ludataharm_sub[:,pft]),1))
-			cons_data_subpft[:,cons_rules_pft==0] = np.nan # zero means that constrain does not apply to the PFT, we turn these values into np.nans.
+			cons_data_subpft = cons_data_sub
 			cons_data_subpft[:,cons_rules_pft<0]=np.ones(shape=np.shape(cons_data_sub[:,cons_rules_pft<0]))+cons_data_subpft[:,cons_rules_pft<0] # Negative values mean inverted constrains
+			cons_rules_pft[cons_rules_pft<0] *= -1 # now that we've inverted the negative constrains, we multiply their weight by -1 to turn it positive
+			cons_data_subpft = cons_data_subpft * np.tile(cons_rules_pft,(len(spat_ludataharm_sub[:,pft]),1))
+			cons_data_subpft[:,cons_rules_pft==0] = np.nan # zero means that constrain does not apply to the PFT, we turn these values into np.nans.
 			# Now we loop over the conversion priority rules to find other PFTs that are contracting, 
 			# thus where we can expand
 			for pft_toconvord in np.arange(1,len(transition_rules[pft]),1):
@@ -123,9 +125,11 @@ def expansion(spat_ludataharm_sub,order_rules,transition_rules,constrain_rules,t
 			# We now add the kernel density to the constrains and normalize their value (all constrains are [0 1])
 			cons_data_sub[:,constrains == 'kerneldensity'] = kernel_vector_sub[:,pft] / np.nanmax([0.00000001,np.nanmax(kernel_vector_sub[:,pft])])
 			# Now we apply the weight of each constrain for that pft
-			cons_data_subpft = cons_data_sub * np.tile(cons_rules_pft,(len(spat_ludataharm_sub[:,pft]),1))
-			cons_data_subpft[:,cons_rules_pft==0] = np.nan # zero means that constrain does not apply to the PFT, we turn these values into np.nans.
+			cons_data_subpft = cons_data_sub
 			cons_data_subpft[:,cons_rules_pft<0]=np.ones(shape=np.shape(cons_data_sub[:,cons_rules_pft<0]))+cons_data_subpft[:,cons_rules_pft<0] # Negative values mean inverted constrains
+			cons_rules_pft[cons_rules_pft<0] *= -1 # now that we've inverted the negative constrains, we multiply their weight by -1 to turn it positive
+			cons_data_subpft = cons_data_subpft * np.tile(cons_rules_pft,(len(spat_ludataharm_sub[:,pft]),1))
+			cons_data_subpft[:,cons_rules_pft==0] = np.nan # zero means that constrain does not apply to the PFT, we turn these values into np.nans.
 			# Now we loop over the conversion priority rules to find other PFTs that are contracting, 
 			# thus where we can expand
 			for pft_toconvord in np.arange(1,len(transition_rules[pft]),1):
@@ -169,8 +173,9 @@ def expansion(spat_ludataharm_sub,order_rules,transition_rules,constrain_rules,t
 						swaparea = min([exp_target,target_change[reg,aeznumber-1,pft_toconv] * -1,np.sum(spat_ludataharm_sub[exist_cells[candidatecells],pft_toconv])])
 						swaparea = min([swaparea, exp_target])
 						#print swaparea
-						#--- Potential expansion: the higher the kernel density, the more potential expansion
-						potexpansion = swaparea * kernel_vector_sub[exist_cells[candidatecells],pft] / np.sum(kernel_vector_sub[exist_cells[candidatecells],pft])
+						#--- Potential expansion: the less constrained, the more potential expansion
+						#potexpansion = swaparea * kernel_vector_sub[exist_cells[candidatecells],pft] / np.sum(kernel_vector_sub[exist_cells[candidatecells],pft])
+						potexpansion = swaparea * expansion_likelihood[candidatecells] / np.sum(expansion_likelihood[candidatecells])				
 						#--- Actual expansion: for each grid-cell, the minimum of: potential expansion, and actual expansion
 						actexpansion = np.amin([potexpansion,spat_ludataharm_sub[exist_cells[candidatecells],pft_toconv]],axis=0)
 						#--- Applying land swap between both PFTs
@@ -456,10 +461,12 @@ except OSError as problem:
 		exit()
 except:
 	raise
-# Saving code and parameter files		
-shutil.copy('./'+os.path.basename(__file__), outpath+'DownscalingSourceCode_' + time.ctime() + '.py')
-shutil.copy('./UserInputs/Downscaling_params.xls', outpath+'DownscalingParameters_' + time.ctime() + '.xls')
-shutil.copy('./' + PFTharmonization , outpath+'DownscalingAllocationRules_' + time.ctime() + '.xls')
+# Saving code and parameter files
+timefilename = time.ctime()
+timefilename = '_'.join(timefilename.split(' '))	
+shutil.copy('./'+os.path.basename(__file__), outpath+'DownscalingSourceCode_' + timefilename + '.py')
+shutil.copy('./UserInputs/Downscaling_params.xls', outpath+'DownscalingParameters_' + timefilename + '.xls')
+shutil.copy('./' + PFTharmonization , outpath+'DownscalingAllocationRules_' + timefilename + '.xls')
 
 #--- Importing additional python modules if needed
 if (map_kernels) | (map_LUC) | (map_tot_LUC):
@@ -570,7 +577,8 @@ useryears = np.array(gcam_years)
 
 #--- Actual land use area data
 keepgoing = 1
-datacol = 4 # Column with land area data for first year, then incremented by one for each timestep
+#!!!
+datacol = 3 # Column with land area data for first year, then incremented by one for each timestep
 gcam_ludata=np.zeros(shape=(len(gcam_aez),len(useryears)))
 while keepgoing == 1:
 	gcam_landarea = np.genfromtxt(RootPath + LUfile,usecols = (datacol), skip_header=1, delimiter=',')

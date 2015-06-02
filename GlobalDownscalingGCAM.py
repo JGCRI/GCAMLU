@@ -454,7 +454,7 @@ try:
 	print 'Created output folder: ' + outpath
 except OSError as problem:
 	if problem[0] == 17:
-		print 'WARNING: output folder already exists and will be overwritten'
+		print 'WARNING: output folder  already exists and will be overwritten: ' + outpath
 	if problem[0] == 2:
 		print 'WARNING: output folder cannot be created, please check "outpath" variable in the Downscaling_params file'
 		print 'oupath was: ' + outpath
@@ -643,7 +643,7 @@ spat_region[spat_region == 30] = 11
 
 
 gridcell_number = len(spat_aez)
-del(spat_aezreg)
+#del(spat_aezreg)
 
 #--- Grid-cell area & grid-cell truncation
 cellarea = np.cos(np.radians(spat_coords[:,0]))*111.32*111.32*resin*resin
@@ -1064,16 +1064,14 @@ for y in range(len(useryears)):
 		mapchange(spat_ludataharm/np.tile(cellarea,(len(final_landclasses),1)).T,spat_ludataharm_orig/np.tile(cellarea,(len(final_landclasses),1)).T,cellindexresin,latin,lonin,final_landclasses,y_year,printlevel,outpath,'timestep_LUC_')
 		spat_ludataharm_orig = spat_ludataharm * 1.	
 	printyan('Total non-achieved change: ' + str(np.sum(abs(target_change[:,:,:].flatten()))/2.) + ' (' + str(np.sum(abs(target_change[:,:,:].flatten()))/np.sum(abs(land_mismatch[:,:,:].flatten())) * 100) + '%)' ,2<=printlevel)
-	a = np.nanmin(target_change)
-	b,c,d = np.where(target_change == a)
-	print b
-	print c
-	print d
+
 	
 	#--- Saving land cover for that year
 	printyan('Saving downscaled LU',1 <= printlevel)
 	createdirectory(outpath,'Spatial_LU/')
-	np.savetxt(outpath + 'Spatial_LU/' + str(y_year) + '_LU.csv',spat_ludataharm,fmt='%i',delimiter=',')
+	headertext = ['FID','water'] + final_landclasses +['regAEZ','Latcoord','Loncoord']
+	np.savetxt(outpath + 'Spatial_LU/' + str(y_year) + '_LU.csv',np.hstack((np.reshape(spat_grid_id,(-1,1)), np.reshape(spat_water/(resin*resin) * cellarea,(-1,1)), spat_ludataharm, np.reshape(spat_aezreg,(-1,1)), spat_coords)), fmt='%g',delimiter=',',header = ','.join(headertext),comments='')
+	
 	if save_netcdf:
 		netcdf_export(spat_ludataharm/np.tile(cellarea * celltrunk,(len(final_landclasses),1)).T,cellindexresin,latin,lonin,resin,final_landclasses,y_year,useryears,outpath)
 

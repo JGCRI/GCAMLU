@@ -277,7 +277,7 @@ def netcdf_export(spat_ludataharm,cellindexresin,latin,lonin,res,final_landclass
 			latbounds.units='degrees_north'	
 			longitudes.units='degrees_east'
 			lonbounds.units='degrees_east'		
-			yearsnc.units='years since 2005-01-01 00:00:00'
+			yearsnc.units='years since 0000-01-01 00:00:00'
 			yearsnc.calendar='standard'
 			yearsnc.bounds='time_bnds'
 		
@@ -487,7 +487,7 @@ if (map_kernels) | (map_LUC) | (map_tot_LUC):
 			
 if save_netcdf:
 	try:
-		import netCDF4
+		from netCDF4 import *
 	except:
 		print 'Poblem loading the python netCDF4 module, please check that it is installed'
 		print 'No netcdf file will be saved in this run'
@@ -1086,6 +1086,12 @@ if map_constrains == 1:
 #--- Mapping total change over the whole temporal extent
 if map_tot_LUC == 1:
 	# Opening first timestep downscaled data
-	spat_ludataharm_orig = np.loadtxt(outpath + 'Spatial_LU/' + str(useryears[0]) + '_LU.csv',delimiter=',')
+	#--- Header
+	with open(outpath + 'Spatial_LU/' + str(useryears[0]) + '_LU.csv', 'rU') as f:
+		z = csv.reader(f, delimiter=',')
+		spat_header = z.next()
+	#--- Data
+	orderheader = [spat_header.index(r) for r in final_landclasses]
+	spat_ludataharm_orig = np.loadtxt(outpath + 'Spatial_LU/' + str(useryears[0]) + '_LU.csv', usecols = tuple(orderheader), skiprows=1, delimiter=',')
 	printyan('Mapping total LUC',2 <= printlevel)
 	mapchange(spat_ludataharm/np.tile(cellarea,(len(final_landclasses),1)).T,spat_ludataharm_orig/np.tile(cellarea,(len(final_landclasses),1)).T,cellindexresin,latin,lonin,final_landclasses,y_year,printlevel,outpath,'Total_LUC_')

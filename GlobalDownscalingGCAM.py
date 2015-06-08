@@ -577,8 +577,7 @@ useryears = np.array(gcam_years)
 
 #--- Actual land use area data
 keepgoing = 1
-#!!!
-datacol = 3 # Column with land area data for first year, then incremented by one for each timestep
+datacol = gcam_header.index('land-allocation')+1 # Column with land area data for first year, then incremented by one for each timestep
 gcam_ludata=np.zeros(shape=(len(gcam_aez),len(useryears)))
 while keepgoing == 1:
 	gcam_landarea = np.genfromtxt(RootPath + LUfile,usecols = (datacol), skip_header=1, delimiter=',')
@@ -1052,19 +1051,19 @@ for y in range(len(useryears)):
 			#--- End PFT loop
 		#--- End AEZ loop
 	#--- End Regional loop	
+
 	#--- Mapping step 3 (if user-wanted)
 	if map_LUC_steps == 1:
 		printyan('Mapping STEP 3 LUC',2 <= printlevel)
 		mapchange(spat_ludataharm/np.tile(cellarea,(len(final_landclasses),1)).T,spat_ludataharm_orig_steps/np.tile(cellarea,(len(final_landclasses),1)).T,cellindexresin,latin,lonin,final_landclasses,y_year,printlevel,outpath,'STEP3_LUC_')
 		spat_ludataharm_orig_steps = spat_ludataharm * 1.
-	
+	printyan('Total non-achieved change: ' + str(np.sum(abs(target_change[:,:,:].flatten()))/2.) + ' (' + str(np.sum(abs(target_change[:,:,:].flatten()))/np.sum(abs(land_mismatch[:,:,:].flatten())) * 100) + '%)' ,2<=printlevel)
+
 	#--- Mapping timestep (if user-wanted)
 	if (map_LUC == 1) | ((map_tot_LUC == 1) & (y == 0)) :
 		printyan('Mapping timestep LUC',2 <= printlevel)
 		mapchange(spat_ludataharm/np.tile(cellarea,(len(final_landclasses),1)).T,spat_ludataharm_orig/np.tile(cellarea,(len(final_landclasses),1)).T,cellindexresin,latin,lonin,final_landclasses,y_year,printlevel,outpath,'timestep_LUC_')
 		spat_ludataharm_orig = spat_ludataharm * 1.	
-	printyan('Total non-achieved change: ' + str(np.sum(abs(target_change[:,:,:].flatten()))/2.) + ' (' + str(np.sum(abs(target_change[:,:,:].flatten()))/np.sum(abs(land_mismatch[:,:,:].flatten())) * 100) + '%)' ,2<=printlevel)
-
 	
 	#--- Saving land cover for that year
 	printyan('Saving downscaled LU',1 <= printlevel)

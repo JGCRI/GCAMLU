@@ -591,13 +591,13 @@ while keepgoing == 1:
 
 #--- Only keeping data relative to the user-wanted scenario
 gcam_ludata=gcam_ludata[gcam_scenario==scenario,:]*1000 # *1000 to get km2 instead of thousand km2
-gcam_scenario=gcam_scenario[gcam_scenario==scenario]
 gcam_region=gcam_region[gcam_scenario==scenario]
 gcam_regionnumber = np.int_(np.zeros(len(gcam_region)))
 for r in regname:
 	gcam_regionnumber[gcam_region == r] = regnumber[regname == r]
 gcam_aez=gcam_aez[gcam_scenario==scenario]
 gcam_landname=gcam_landname[gcam_scenario==scenario]
+gcam_scenario=gcam_scenario[gcam_scenario==scenario]
 allreg = list(np.unique(gcam_region))
 allregnumber = list(np.unique(gcam_regionnumber))
 ### !!! WARNING !!! ###
@@ -955,7 +955,7 @@ for y in range(len(useryears)):
 	#--- Mapping (if user-wanted)
 	if map_LUC_steps == 1:
 		printyan('Mapping STEP 1 LUC',2 <= printlevel)
-		mapchange(spat_ludataharm/np.tile(cellarea,(len(final_landclasses),1)).T,cellarea,spat_ludataharm_orig_steps/np.tile(cellarea,(len(final_landclasses),1)).T,cellindexresin,latin,lonin,final_landclasses,y_year,printlevel,outpath,'STEP1_LUC_')
+		mapchange(spat_ludataharm/np.tile(cellarea,(len(final_landclasses),1)).T,spat_ludataharm_orig_steps/np.tile(cellarea,(len(final_landclasses),1)).T,cellindexresin,latin,lonin,final_landclasses,y_year,printlevel,outpath,'STEP1_LUC_')
 		spat_ludataharm_orig_steps = spat_ludataharm * 1.
 	printyan('Total non-achieved change: ' + str(np.sum(abs(target_change[:,:,:]))/2.) + ' (' + str(np.sum(abs(target_change[:,:,:].flatten()))/np.sum(abs(land_mismatch[:,:,:].flatten())) * 100) + '%)' ,2<=printlevel)
 	

@@ -395,6 +395,8 @@ def mapkernels(spatdata,kerneldata,lat,lon,pftname,year,outpathfig,filename):
 	ax1.imshow(spatdata, cmap=cmaptouse, extent=mapextent, interpolation='nearest',origin='upper', aspect='auto')
 	ax2.imshow(kerneldata, cmap=cmaptouse, extent=mapextent, interpolation='nearest',origin='upper', aspect='auto')
 	plt.savefig(outpathfig + 'KernelDensity/' + filename + pftname + str(year) + '.png', dpi=300)
+	fig.clf()
+	plt.close(fig)
 
 ################################
 ### SCREEN PRINTING FUNCTION ###
@@ -450,7 +452,7 @@ for r in range(len(paramcol1)):
 
 #--- Creating output directory and saving code and User Input files
 try:
-	message = os.mkdir(outpath)
+	message = createdirectory(RootPath,outpath)
 	print 'Created output folder: ' + outpath
 except OSError as problem:
 	if problem[0] == 17:

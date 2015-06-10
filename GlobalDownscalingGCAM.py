@@ -465,7 +465,8 @@ except:
 	raise
 # Saving code and parameter files
 timefilename = time.ctime()
-timefilename = '_'.join(timefilename.split(' '))	
+timefilename = '_'.join(timefilename.split(' '))
+timefilename = '_'.join(timefilename.split(':'))	
 shutil.copy('./'+os.path.basename(__file__), outpath+'DownscalingSourceCode_' + timefilename + '.py')
 shutil.copy('./UserInputs/Downscaling_params.xls', outpath+'DownscalingParameters_' + timefilename + '.xls')
 shutil.copy('./' + PFTharmonization , outpath+'DownscalingAllocationRules_' + timefilename + '.xls')

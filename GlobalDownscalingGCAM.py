@@ -535,20 +535,14 @@ order_rules = shharm.col_values(1)[rulecol1.index('TREATORDER')+1:rulecol1.index
 
 # Spatial constrains
 # For each final PFT, we read in the weight of each constrain
-if len(constrains) == 0:
+constrain_names = rulecol1[rulecol1.index('CONSTRAINS')+1:rulecol1.index('CONSTRAINSFIN')]
+if len(constrain_names) == 0:
 	# No constrains, we default a single constrain at 1.
 	constrain_rules = np.ones(shape=(1,len(final_landclasses)))
 else:
-	constrain_names = rulecol1[rulecol1.index('CONSTRAINS')+1:rulecol1.index('CONSTRAINSFIN')]
-	if len(constrain_names) == 0:
-		print 'ERROR: you are trying to apply constrains in the Downscaling_params.xls file, but you dont provide the rules in the Harmonization.xls file'
-		bleeee
 	constrain_rules = np.ones(shape=(len(constrain_names),len(final_landclasses)))
 	for t in final_landclasses:
 		constrain_rules[:,final_landclasses.index(t)] =  shharm.col_values(rulerow1.index(t))[rulecol1.index('CONSTRAINS')+1:rulecol1.index('CONSTRAINSFIN')]
-
-# Kernel constrain
-# Whether there are spatial constrains or not, we read in the weight of the kernel density. 
 
 
 ####################
@@ -655,20 +649,20 @@ spat_ludata = spat_ludata/(resin*resin) * np.transpose([cellarea,] * len(spat_la
 
 ### Spatial constrains
 printyan('3. Spatial constrains data... might take a few minutes',0<printlevel)
-if len(constrains) == 0:
+if len(constrain_names) == 0:
 	cons_data = np.ones(shape=(ngrids,1)) # if no constrain is considered, we apply 1 (no constrain) to every grid cell.
 else:
-	cons_data = np.zeros(shape=(ngrids,len(constrains)))
-	for cons in range(len(constrains)):
-		if constrains[cons] != 'kerneldensity':
+	cons_data = np.zeros(shape=(ngrids,len(constrain_names)))
+	for cons in range(len(constrain_names)):
+		if constrain_names[cons] != 'kerneldensity':
 			# Kernel density is computed later, on the fly, every year, unlike other constrains which are constant inputs.
-			exec('consfile = ' + constrains[cons])
+			exec('consfile = ' + constrain_names[cons])
 			data = np.loadtxt(RootPath + consfile, delimiter=',')
 			if len(data[:,0]) != ngrids:
-				print 'PROBLEM: the number of grid-cells in the constrain data ' + constrains[cons] + ' does not match the number of grid-cells in the spatial LU data'
+				print 'PROBLEM: the number of grid-cells in the constrain data ' + constrain_names[cons] + ' does not match the number of grid-cells in the spatial LU data'
 				bleeee
 			if np.nansum(spat_grid_id - data[:,0]) != 0:
-				print 'PROBLEM: the grid-cell id of the constrain data ' + constrains[cons] + ' do not match the spatial LU data'
+				print 'PROBLEM: the grid-cell id of the constrain data ' + constrain_names[cons] + ' do not match the spatial LU data'
 				bleeee
 			cons_data[:,cons] = data[:,-1]
 
@@ -948,7 +942,7 @@ for y in range(len(useryears)):
 			############################################
 			### CALLING THE INTENSIFICATION FUNCTION ###
 			############################################
-			spat_ludataharm[(spat_region == regnumber) & (spat_aez == aeznumber)],target_change = intensification(spat_ludataharm_sub,order_rules,transition_rules,constrain_rules,target_intensification,land_mismatch,target_change,kernel_vector_sub,constrains,cons_data_sub,reg,aeznumber,errortol,final_landclasses,printlevel)
+			spat_ludataharm[(spat_region == regnumber) & (spat_aez == aeznumber)],target_change = intensification(spat_ludataharm_sub,order_rules,transition_rules,constrain_rules,target_intensification,land_mismatch,target_change,kernel_vector_sub,constrain_names,cons_data_sub,reg,aeznumber,errortol,final_landclasses,printlevel)
 
 			#--- End PFT loop
 		#--- End AEZ loop
@@ -999,7 +993,7 @@ for y in range(len(useryears)):
 			####################
 			### LOOP ON PFTs ###
 			####################
-			spat_ludataharm[(spat_region == regnumber) & (spat_aez == aeznumber)],target_change = expansion(spat_ludataharm_sub,order_rules,transition_rules,constrain_rules,target_intensification,land_mismatch,target_change,kernel_vector_sub,constrains,cons_data_sub,reg,aeznumber,errortol,final_landclasses,printlevel)
+			spat_ludataharm[(spat_region == regnumber) & (spat_aez == aeznumber)],target_change = expansion(spat_ludataharm_sub,order_rules,transition_rules,constrain_rules,target_intensification,land_mismatch,target_change,kernel_vector_sub,constrain_names,cons_data_sub,reg,aeznumber,errortol,final_landclasses,printlevel)
 			
 			#--- End PFT loop
 		#--- End AEZ loop
@@ -1049,7 +1043,7 @@ for y in range(len(useryears)):
 			####################
 			### LOOP ON PFTs ###
 			####################
-			spat_ludataharm[(spat_region == regnumber) & (spat_aez == aeznumber)],target_change = intensification(spat_ludataharm_sub,order_rules,transition_rules,constrain_rules,target_intensification,land_mismatch,target_change,kernel_vector_sub,constrains,cons_data_sub,reg,aeznumber,errortol,final_landclasses,printlevel)
+			spat_ludataharm[(spat_region == regnumber) & (spat_aez == aeznumber)],target_change = intensification(spat_ludataharm_sub,order_rules,transition_rules,constrain_rules,target_intensification,land_mismatch,target_change,kernel_vector_sub,constrain_names,cons_data_sub,reg,aeznumber,errortol,final_landclasses,printlevel)
 
 			#--- End PFT loop
 		#--- End AEZ loop
@@ -1081,7 +1075,7 @@ for y in range(len(useryears)):
 
 #--- Mapping constrains if user-desired
 if map_constrains == 1:
-	mapchange(cons_data,cons_data,cellindexresin,latin,lonin,constrains,'Static',printlevel,outpath,'Constrain_')
+	mapchange(cons_data,cons_data,cellindexresin,latin,lonin,constrain_names,'Static',printlevel,outpath,'Constrain_')
 	mapchange(np.reshape(np.nansum(cons_data,axis=1),(ngrids,1)),np.reshape(np.nansum(cons_data,axis=1),(ngrids,1)),cellindexresin,latin,lonin,['summedconstrains'],'Static',printlevel,outpath,'AllSummedConstrains')
 
 

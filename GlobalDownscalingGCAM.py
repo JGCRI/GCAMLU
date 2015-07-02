@@ -200,11 +200,12 @@ def expansion(spat_ludataharm_sub,order_rules,transition_rules,constrain_rules,t
 def mapchange(spat_ludataharm,spat_ludataharm_orig,cellindexresin,lat,lon,final_landclasses,year,printlevel,outpath,filename):
 	createdirectory(outpath,'Maps/LUC/')
 	mapextent=[lon[0],lon[-1],lat[-1],lat[0]]
-	pft_orig = np.zeros(shape=(len(latin),len(lonin)))
-	pft_now = np.zeros(shape=(len(latin),len(lonin)))
-	pft_change = np.zeros(shape=(len(latin),len(lonin)))
+	pft_orig = np.zeros(shape=(len(latin),len(lonin))) * np.nan
+	pft_now = np.zeros(shape=(len(latin),len(lonin))) *np.nan
+	pft_change = np.zeros(shape=(len(latin),len(lonin))) * np.nan
 	kmtofractionmap = np.tile(np.cos(np.radians(latin))*111.32*111.32*(180./len(latin))*(180./len(latin)),(len(lonin),1)).T
-	bordercoords=borders('Regions')		
+	bordercoords=borders('Regions')
+	bordercoords2=borders('Countries')
 	for pft in range(len(final_landclasses)):
 		pftname = final_landclasses[pft]
 		pft_orig[np.int_(cellindexresin[0,:]),np.int_(cellindexresin[1,:])] = spat_ludataharm_orig[:,pft]
@@ -226,20 +227,23 @@ def mapchange(spat_ludataharm,spat_ludataharm_orig,cellindexresin,lat,lon,final_
 		ax3.set_title(str(y_year) +' CHANGE: ' + outpath, fontsize=10)
 		cmaptouse=cm.get_cmap('YlOrBr')
 		a1=ax1.imshow(pft_orig, cmap=cmaptouse, extent=mapextent, interpolation='nearest',origin='upper', aspect='auto')
-		a1b = ax1.plot(bordercoords[0,:], bordercoords[1,:],color='black',linestyle='-',linewidth=0.2)
+		a1b = ax1.plot(bordercoords[0,:], bordercoords[1,:],color='black',linestyle='-',linewidth=0.5)
+		a1bc = ax1.plot(bordercoords2[0,:], bordercoords2[1,:],color='0.8',linestyle='-',linewidth=0.2)
 		ax1.axis(mapextent)
 		colbar1=fig.colorbar(a1,cax=ax1b,orientation='vertical')
 		a2=ax2.imshow(pft_now, cmap=cmaptouse, extent=mapextent, interpolation='nearest',origin='upper', aspect='auto') #vmin = 0, vmax=1,
-		a2b = ax2.plot(bordercoords[0,:], bordercoords[1,:],color='black',linestyle='-',linewidth=0.2)
+		a2b = ax2.plot(bordercoords[0,:], bordercoords[1,:],color='black',linestyle='-',linewidth=0.5)
+		a2c = ax2.plot(bordercoords2[0,:], bordercoords2[1,:],color='0.8',linestyle='-',linewidth=0.2)
 		ax2.axis(mapextent)
 		colbar2=fig.colorbar(a2,cax=ax2b,orientation='vertical')
 		cmaptouse=cm.get_cmap('seismic')
-		barmin = np.nanmin(pft_change)
-		barmax = np.nanmax(pft_change)
-		barmax = np.nanmax(abs(np.array([barmin,barmax])))
+		barmin = np.nanmin(pft_change)/2.
+		barmax = np.nanmax(pft_change)/2.
+		barmax = np.nanmax(abs(np.array([barmin,barmax])))/2.
 		barmin = barmax * -1
 		a3=ax3.imshow(pft_change,vmin = barmin, vmax =barmax, cmap=cmaptouse,extent=mapextent,interpolation='nearest',origin='upper', aspect='auto')
-		a3b = ax3.plot(bordercoords[0,:], bordercoords[1,:],color='black',linestyle='-',linewidth=0.4)
+		a3b = ax3.plot(bordercoords[0,:], bordercoords[1,:],color='black',linestyle='-',linewidth=0.5)
+		a3c = ax3.plot(bordercoords2[0,:], bordercoords2[1,:],color='0.8',linestyle='-',linewidth=0.2)
 		ax3.axis(mapextent)
 		colbar3=fig.colorbar(a3,cax=ax3b,orientation='vertical')
 		# Saving

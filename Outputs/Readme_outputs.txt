@@ -1,0 +1,1 @@
+Outputs from downscaling runs (gridded landuse, maps, diagnostics) will be saved in this folder, in a new subfolder named according to the variable “outpath” in the Downscaling_params.xls file.

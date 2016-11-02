@@ -25,6 +25,9 @@ def intensification(spat_ludataharm_sub,order_rules,transition_rules,constrain_r
 	# We follow the order of treatment as defined by the user and retrieved in order_rules
 # 	if (reg == 10) & (aeznumber == 15):
 # 		printlevel = 5
+	# Initializing transition matrix
+	trans_mat = np.zeros(shape=(len(spat_ludataharm_sub[:,0]),len(order_rules),len(order_rules)))
+	target_change_const = target_change * 1.
 	for pftord in np.unique(order_rules):
 		pft = np.where(order_rules == pftord)[0][0]
 		lname = final_landclasses[pft]
@@ -93,15 +96,21 @@ def intensification(spat_ludataharm_sub,order_rules,transition_rules,constrain_r
 						target_intensification[aeznumber-1,pft] -= np.sum(actexpansion)
 						target_change[reg,aeznumber-1,pft_toconv] += np.sum(actexpansion)
 						target_intensification[aeznumber-1,pft_toconv] += np.sum(actexpansion)
+						trans_mat[exist_cells,pft,pft_toconv] += actexpansion
 						if np.sum(np.isnan(target_change))>0:
 							bleeeee
+						if abs(np.sum(abs(target_change_const))/2. - np.sum(abs(target_change))/2. - np.sum(trans_mat)) > 0.00001:
+							print abs(np.sum(abs(target_change_const))/2. - np.sum(abs(target_change))/2. - np.sum(trans_mat))
+							print np.sum(abs(target_change_const))/2. - np.sum(abs(target_change))/2. 
+							print np.sum(trans_mat)
+							bleeee 
 						#--- updating notdone: if we're reached our intensification target, or if there's no more of the to-convert PFT
 						# in the considered grid-cells, then we break the while loop
 						notdone = (int_target > errortol) & (target_change[reg,aeznumber-1,pft_toconv] < -errortol) & (np.sum(spat_ludataharm_sub[exist_cells,pft_toconv]) > errortol)	& (len(exist_cells) > 0) & (np.sum(mean_cons_cells) != len(mean_cons_cells))
 				#printyan(lname + ' left after: ' + lname_toconv + ': ' + str(int_target) ,4<=printlevel)
-			#--- How much intensification we've achieved 
-			printyan(lname + ' intensification achieved: ' + str(int_target_const - target_change[reg,aeznumber-1,pft]) + '(Total: ' + str((land_mismatch[reg,aeznumber-1,pft] - target_change[reg,aeznumber-1,pft]) / land_mismatch[reg,aeznumber-1,pft] * 100) + '%)',4<=printlevel)
-	return spat_ludataharm_sub, target_change
+		#--- How much intensification we've achieved 
+		printyan(lname + ' intensification achieved: ' + str(int_target_const - int_target) + '(Total: ' + str((land_mismatch[reg,aeznumber-1,pft] - target_change[reg,aeznumber-1,pft]) / land_mismatch[reg,aeznumber-1,pft] * 100) + '%)',4<=printlevel)
+	return spat_ludataharm_sub, target_change, trans_mat
 
 
 def expansion(spat_ludataharm_sub,order_rules,transition_rules,constrain_rules,target_intensification,land_mismatch,target_change,kernel_vector_sub,constrains,cons_data_sub,reg,aeznumber,errortol,final_landclasses,printlevel):
@@ -110,6 +119,9 @@ def expansion(spat_ludataharm_sub,order_rules,transition_rules,constrain_rules,t
 	####################
 # 	if (reg == 10) & (aeznumber == 15):
 # 		printlevel = 5
+	# Initializing transition matrix
+	trans_mat = np.zeros(shape=(len(spat_ludataharm_sub[:,0]),len(order_rules),len(order_rules)))
+	target_change_const = target_change * 1.
 	# We follow the order of treatment as defined by the user and retrieved in order_rules
 	for pftord in np.unique(order_rules):
 		pft = np.where(order_rules == pftord)[0][0]
@@ -167,8 +179,7 @@ def expansion(spat_ludataharm_sub,order_rules,transition_rules,constrain_rules,t
 						if stochastic_expansion == 1:
 							drawcells = stats.binom.rvs(1,expansion_likelihood / np.nanmax(expansion_likelihood))
 						else:
-							drawcells = expansion_likelihood >= selection_threshold * np.nanmax(expansion_likelihood)
-							
+							drawcells = expansion_likelihood >= selection_threshold * np.nanmax(expansion_likelihood)			
 						#--- Result of the draw
 						candidatecells=np.where(drawcells == 1)[0]
 						#--- Total area that the PFT-to-convert could give
@@ -187,14 +198,23 @@ def expansion(spat_ludataharm_sub,order_rules,transition_rules,constrain_rules,t
 						target_change[reg,aeznumber-1,pft] -= np.sum(actexpansion)
 						exp_target -= np.sum(actexpansion)
 						target_change[reg,aeznumber-1,pft_toconv] += np.sum(actexpansion)
+						trans_mat[exist_cells[candidatecells],pft,pft_toconv] += actexpansion
+						if np.max(trans_mat)>780:
+							print np.max(actexpansion)
+							bleeee						
 						if np.sum(np.isnan(target_change))>0:
 							bleeeeeee
+						if abs(np.sum(abs(target_change_const))/2. - np.sum(abs(target_change))/2. - np.sum(trans_mat)) > 0.00001:
+							print abs(np.sum(abs(target_change_const))/2. - np.sum(abs(target_change))/2. - np.sum(trans_mat))
+							print np.sum(abs(target_change_const))/2. - np.sum(abs(target_change))/2. 
+							print np.sum(trans_mat)
+							bleeee 
 						#--- updating notdone: if we're reached our intensification target, or if there's no more of the to-convert PFT
 						# in the considered grid-cells, then we break the while loop
 						notdone = (exp_target > errortol) & (target_change[reg,aeznumber-1,pft_toconv] < -errortol) & (np.sum(spat_ludataharm_sub[exist_cells,pft_toconv]) > errortol) & (len(exist_cells) > 0) & (np.sum(mean_cons_cells) != len(mean_cons_cells))
-			#--- How much intensification we've achieved 
-			printyan(lname + ' expansion achieved: ' + str(exp_target_const - target_change[reg,aeznumber-1,pft]) + ' (Total: ' + str((land_mismatch[reg,aeznumber-1,pft] - target_change[reg,aeznumber-1,pft]) / land_mismatch[reg,aeznumber-1,pft] * 100) + '%)',4<=printlevel)
-	return spat_ludataharm_sub, target_change
+		#--- How much intensification we've achieved 
+		printyan(lname + ' expansion achieved: ' + str(exp_target_const - target_change[reg,aeznumber-1,pft]) + ' (Total: ' + str((land_mismatch[reg,aeznumber-1,pft] - target_change[reg,aeznumber-1,pft]) / land_mismatch[reg,aeznumber-1,pft] * 100) + '%)',4<=printlevel)
+	return spat_ludataharm_sub, target_change, trans_mat
 
 
 
@@ -252,6 +272,31 @@ def mapchange(spat_ludataharm,spat_ludataharm_orig,cellindexresin,lat,lon,final_
 		plt.savefig(outpath + 'Maps/LUC/' + filename + pftname + str(year) + '.png', dpi=300)	
 		fig.clf()
 		plt.close(fig)
+		
+def maptransitions(spat_ludataharm,cellindexresin,lat,lon,final_landclasses,year,printlevel,outpath,filename):
+	createdirectory(outpath,'Maps/')
+	mapextent=[lon[0],lon[-1],lat[-1],lat[0]]
+	transition = np.zeros(shape=(len(latin),len(lonin))) * np.nan
+	kmtofractionmap = np.tile(np.cos(np.radians(latin))*111.32*111.32*(180./len(latin))*(180./len(latin)),(len(lonin),1)).T
+	bordercoords=borders('Regions')
+	bordercoords2=borders('Countries')
+	pftname = ''
+	transition[np.int_(cellindexresin[0,:]),np.int_(cellindexresin[1,:])] = spat_ludataharm[:,0]
+	# Mapping
+	fig = plt.figure(figsize=(10,6))
+	ax1 = plt.subplot2grid((3,8),(0,0),colspan = 7,rowspan = 3)
+	ax1b = plt.subplot2grid((3,8),(0,7))
+	ax1.set_title('transitions:', fontsize=10)
+	cmaptouse=cm.get_cmap('YlOrBr')
+	a1=ax1.imshow(transition, cmap=cmaptouse, extent=mapextent, interpolation='nearest',origin='upper', aspect='auto')
+	a1b = ax1.plot(bordercoords[0,:], bordercoords[1,:],color='black',linestyle='-',linewidth=0.5)
+	a1bc = ax1.plot(bordercoords2[0,:], bordercoords2[1,:],color='0.8',linestyle='-',linewidth=0.2)
+	ax1.axis(mapextent)
+	colbar1=fig.colorbar(a1,cax=ax1b,orientation='vertical')
+	# Saving
+	plt.savefig(outpath + 'Maps/' + filename + str(year) + '.png', dpi=300)	
+	fig.clf()
+	plt.close(fig)		
 
 # Function to save netcdf files
 def netcdf_export(spat_ludataharm,cellindexresin,latin,lonin,res,final_landclasses,y_year,useryears,outpath):
@@ -874,8 +919,8 @@ for y in range(len(useryears)):
 					#print str(i) + '/' + str(len(spat_coords[:,0]))
 				#cellindex[0,i]=argmin(abs(latkernel-spat_coords[i,0]))
 				#cellindex[1,i]=argmin(abs(lonkernel-spat_coords[i,1]))
-				cellindexresin[0,i]=argmin(abs(latin-spat_coords[i,0]))
-				cellindexresin[1,i]=argmin(abs(lonin-spat_coords[i,1]))
+				cellindexresin[0,i]=np.argmin(abs(latin-spat_coords[i,0]))
+				cellindexresin[1,i]=np.argmin(abs(lonin-spat_coords[i,1]))
 			try:
 				os.mkdir(RootPath + 'Utilities/MappingIndices/')
 			except:
@@ -910,6 +955,11 @@ for y in range(len(useryears)):
 		kernel_vector[:,pft] = kernel_maps[np.int_(cellindexresin[0,:]),np.int_(cellindexresin[1,:]),pft]
 	#del(kernel_maps)
 	#del(pft_maps)
+	
+	##################################################
+	### INITIALIZE TRANSITION MATRIX FOR THAT YEAR ###
+	##################################################
+	transitions=np.zeros(shape=(len(spat_region),len(order_rules),len(order_rules)))	
 
 	###########################################################
 	### INTENSIFICATION ON GRID CELLS WITH PRE-EXISTING PFT ###
@@ -942,8 +992,8 @@ for y in range(len(useryears)):
 		# There is a parameter (intensification_ratio) to control the desired ratio of intensification versus expansion. The downscaling first intensifies, until it reaches 
 		# either that ratio, or the maximum intensification it can achieve. The rest is done by proximity expansion.
 		# target_intensification represents how much we'd like to do by intensification given that ratio.
-		target_intensification = target_change[reg,:,:] * intensification_ratio
-		####################
+		target_intensification = target_change[reg,:,:] * 1.
+		target_intensification[target_intensification>0] *= intensification_ratio		####################
 		### LOOP ON AEZs ###
 		####################		
 		for aez in range(len(allregaez[reg])):
@@ -958,8 +1008,8 @@ for y in range(len(useryears)):
 			############################################
 			### CALLING THE INTENSIFICATION FUNCTION ###
 			############################################
-			spat_ludataharm[(spat_region == regnumber) & (spat_aez == aeznumber)],target_change = intensification(spat_ludataharm_sub,order_rules,transition_rules,constrain_rules,target_intensification,land_mismatch,target_change,kernel_vector_sub,constrain_names,cons_data_sub,reg,aeznumber,errortol,final_landclasses,printlevel)
-
+			spat_ludataharm[(spat_region == regnumber) & (spat_aez == aeznumber)],target_change, trans_mat = intensification(spat_ludataharm_sub,order_rules,transition_rules,constrain_rules,target_intensification,land_mismatch,target_change,kernel_vector_sub,constrain_names,cons_data_sub,reg,aeznumber,errortol,final_landclasses,printlevel)
+			transitions[(spat_region == regnumber) & (spat_aez == aeznumber),:,:] += trans_mat
 			#--- End PFT loop
 		#--- End AEZ loop
 	#--- End Regional loop
@@ -1009,8 +1059,8 @@ for y in range(len(useryears)):
 			####################
 			### LOOP ON PFTs ###
 			####################
-			spat_ludataharm[(spat_region == regnumber) & (spat_aez == aeznumber)],target_change = expansion(spat_ludataharm_sub,order_rules,transition_rules,constrain_rules,target_intensification,land_mismatch,target_change,kernel_vector_sub,constrain_names,cons_data_sub,reg,aeznumber,errortol,final_landclasses,printlevel)
-			
+			spat_ludataharm[(spat_region == regnumber) & (spat_aez == aeznumber)],target_change, trans_mat = expansion(spat_ludataharm_sub,order_rules,transition_rules,constrain_rules,target_intensification,land_mismatch,target_change,kernel_vector_sub,constrain_names,cons_data_sub,reg,aeznumber,errortol,final_landclasses,printlevel)
+			transitions[(spat_region == regnumber) & (spat_aez == aeznumber),:,:] += trans_mat
 			#--- End PFT loop
 		#--- End AEZ loop
 	#--- End Regional loop
@@ -1059,8 +1109,8 @@ for y in range(len(useryears)):
 			####################
 			### LOOP ON PFTs ###
 			####################
-			spat_ludataharm[(spat_region == regnumber) & (spat_aez == aeznumber)],target_change = intensification(spat_ludataharm_sub,order_rules,transition_rules,constrain_rules,target_intensification,land_mismatch,target_change,kernel_vector_sub,constrain_names,cons_data_sub,reg,aeznumber,errortol,final_landclasses,printlevel)
-
+			spat_ludataharm[(spat_region == regnumber) & (spat_aez == aeznumber)],target_change, trans_mat = intensification(spat_ludataharm_sub,order_rules,transition_rules,constrain_rules,target_intensification,land_mismatch,target_change,kernel_vector_sub,constrain_names,cons_data_sub,reg,aeznumber,errortol,final_landclasses,printlevel)
+			transitions[(spat_region == regnumber) & (spat_aez == aeznumber),:,:] += trans_mat
 			#--- End PFT loop
 		#--- End AEZ loop
 	#--- End Regional loop	
@@ -1086,6 +1136,25 @@ for y in range(len(useryears)):
 	
 	if save_netcdf:
 		netcdf_export(spat_ludataharm/np.tile(cellarea * celltrunk,(len(final_landclasses),1)).T,cellindexresin,latin,lonin,resin,final_landclasses,y_year,useryears,outpath)
+
+	#--- Saving transitions for that year
+	if save_transitions == 1:	
+		printyan('Saving Transitions',1 <= printlevel)
+		createdirectory(outpath,'Transitions/' + str(y_year) + '/')
+		for pftord in np.unique(order_rules):
+			pft = np.where(order_rules == pftord)[0][0]
+			lname = final_landclasses[pft]
+			createdirectory(outpath,'Transitions/' + str(y_year) + '/' + lname + '_to_others/')
+			for pft_toconvord in np.arange(1,len(transition_rules[pft]),1):
+				pft_toconv = np.where(transition_rules[pft,:] == pft_toconvord)[0][0]
+				lname_toconv = final_landclasses[pft_toconv]
+				headertext = ['FID', lname + '_to_' + lname_toconv, 'regAEZ','Latcoord','Loncoord']
+				np.savetxt(outpath + 'Transitions/' + str(y_year) + '/' + lname + '_to_others/' + lname + '_to_' + lname_toconv + '.csv',np.hstack((np.reshape(spat_grid_id,(-1,1)), np.reshape(transitions[:,pft_toconv,pft],(-1,1)), np.reshape(spat_aezreg,(-1,1)), spat_coords)), fmt='%g',delimiter=',',header = ','.join(headertext),comments='')
+				#--- Mapping timestep (if user-wanted)
+				if save_transition_maps == 1:
+					maptransitions(np.reshape(transitions[:,pft_toconv,pft],(-1,1))/np.tile(cellarea,(1,1)).T,cellindexresin,latin,lonin,[''],y_year,printlevel,outpath + 'Transitions/' + str(y_year) + '/' + lname + '_to_others/',lname + '_to_' + lname_toconv)
+
+	
 
 #--- End year loop
 

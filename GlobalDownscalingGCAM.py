@@ -791,7 +791,7 @@ for lnum in range(len(spat_landclasses)):
 		print 'ERROR: aggregation numbers for PFT ' + spat_landclasses[lnum] + ' in the spatial data sum up to more than 1.'
 		bleeeeeee
 	if np.sum(mapping_row > 0) > 1:
-		spat_ludataharm[:,mapping_row > 0] += spat_ludata[:,lnum] * np.tile(mapping_row[mapping_row > 0],(gridcell_number,1))
+		spat_ludataharm[:,mapping_row > 0] += np.tile(spat_ludata[:,lnum],(np.sum(mapping_row > 0),1)).T * np.tile(mapping_row[mapping_row > 0],(gridcell_number,1))
 	elif np.sum(mapping_row > 0) == 1:
 		spat_ludataharm[:,mapping_row > 0] += spat_ludata[:,lnum:lnum+1] * np.tile(mapping_row[mapping_row > 0],(gridcell_number,1))
 # If the user wants to map land use change, we keep a copy of the original data
